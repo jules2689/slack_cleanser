@@ -1,0 +1,45 @@
+#!/usr/bin/env ruby
+
+require "bundler"
+Bundler.setup(:default)
+
+require 'fileutils'
+require 'dotenv/load'
+require 'slack-ruby-client'
+
+dir = File.expand_path("../lib", __dir__)
+$:.unshift dir
+
+Dir.chdir(dir) do
+  ALLOWED_PUBLIC_CHANNELS = File.readlines('config/permitted_channels').map(&:chomp)
+  ONE_DAY = 60 * 60 * 24 # 60 s * 60 m * 24 h
+
+  require 'cached_closed'
+  require 'closer'
+
+  Slack.configure do |config|
+    config.token = ENV['SLACK_TOKEN']
+  end
+
+  # Clean up caches
+  date = Time.now.strftime("%m_%d_%Y")
+  to_cleanup = Dir.glob('cache/convo_info/*') - Dir.glob("cache/convo_info/*_#{date}")
+  to_cleanup.each { |f| FileUtils.rm(f) }
+
+  date = Time.now.strftime("%m_%d_%Y")
+  to_cleanup = Dir.glob('cache/cache_closed/*') - Dir.glob("cache/cache_closed/*_#{date}")
+  to_cleanup.each { |f| FileUtils.rm(f) }
+
+  # We want to close all channels we are a member of and are not in the whitelist
+  public_channel_closer = Closer.new('public_channel', fetch_channel_info: false, disallowed: -> (chan) {
+    chan.is_member && !ALLOWED_PUBLIC_CHANNELS.include?(chan.name_normalized)
+  })
+  public_channel_closer.run
+
+  # We want to close all IMs that are open and have had no response in 2 days
+  im_closer = Closer.new('im', disallowed: -> (chan) {
+    too_old = Time.at(chan.last_read.to_f) < Time.now - ONE_DAY * 2
+    chan.is_open && too_old
+  })
+  im_closer.run
+end

@@ -1,0 +1,7 @@
+.env
+.dev
+.byebug_history
+.DS_Store
+.bundle
+lib/cache/convo_info/*
+lib/cache/cache_closed/*
