@@ -11,7 +11,7 @@ dir = File.expand_path("../lib", __dir__)
 $:.unshift dir
 
 Dir.chdir(dir) do
-  ALLOWED_PUBLIC_CHANNELS = File.readlines('config/permitted_channels').map(&:chomp)
+  ALLOWED_PUBLIC_CHANNELS = ENV['WHITELISTED_CHANNELS'].split(',')
   ONE_DAY = 60 * 60 * 24 # 60 s * 60 m * 24 h
 
   require 'cached_closed'
