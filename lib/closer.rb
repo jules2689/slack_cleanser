@@ -56,7 +56,11 @@ class Closer
       conversations_to_leave = all_conversations.select do |chan|
         next false if @cached_closed.include?(chan.id)
         if @fetch_channel_info
-          resp = cached("cache/convo_info/#{chan.id}_#{date}") { @client.conversations_info(channel: chan.id) }
+          resp = cached("cache/convo_info/#{chan.id}_#{date}") do
+            retriable do
+              @client.conversations_info(channel: chan.id)
+            end
+          end
           @disallowed.call(resp.channel)
         else
           @disallowed.call(chan)
